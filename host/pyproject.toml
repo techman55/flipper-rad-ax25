@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fzkiss"
+version = "1.0.0"
+description = "Host tools for the Flipper Zero KISS TNC app (KISS over USB CDC)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["pyserial>=3.5"]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+fzkiss = "fzkiss.cli:main"
+
+[tool.setuptools]
+packages = ["fzkiss"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
