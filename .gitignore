@@ -1,0 +1,20 @@
+# ufbt
+fap/.ufbt/
+fap/dist/
+fap/build/
+.vscode/
+.clangd
+compile_commands.json
+# native tests
+modem_tests/build/
+# python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+# swift
+mac/FlipperTNC/.build/
+mac/FlipperTNC/.swiftpm/
+*.xcuserstate
+DerivedData/
+.DS_Store
