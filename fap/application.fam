@@ -1,0 +1,15 @@
+App(
+    appid="kiss_tnc",
+    name="KISS TNC",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="kiss_tnc_app",
+    requires=["gui", "notification", "storage", "power"],
+    stack_size=4 * 1024,
+    fap_category="Sub-GHz",
+    fap_icon="icons/kiss_10px.png",
+    fap_version="1.0",
+    fap_description="Half-duplex AX.25 packet TNC. KISS over USB CDC channel 1; CLI stays on channel 0.",
+    fap_author="flipper-rad-ax25",
+    fap_weburl="https://github.com/techman55/flipper-rad-ax25",
+    sources=["*.c"],  # recursive glob: picks up modem/*.c too
+)
