@@ -12,6 +12,7 @@
 #define USB_PKT        CDC_DATA_SZ
 #define OUT_BUF_SIZE   4096u
 #define ENCODE_SCRATCH 1400u /**< room for two escaped max-size frames */
+#define IN_BUF_SIZE    2048u /**< host bytes read in the USB IRQ, waiting for the worker */
 
 typedef enum {
     EvtStop = (1 << 0),
@@ -31,6 +32,8 @@ struct UsbKiss {
     FuriMutex* out_mutex; /**< serialises producers (stream buffer is single-writer) */
     uint8_t scratch[ENCODE_SCRATCH];
 
+    FuriStreamBuffer* in; /**< host -> device bytes (written only by the CDC RX callback) */
+    volatile uint32_t rx_dropped; /**< host bytes lost because `in` was full */
     KissDecoder decoder;
     UsbKissFrameCallback cb;
     void* cb_ctx;
@@ -43,7 +46,7 @@ struct UsbKiss {
     size_t last_tx_len;
 };
 
-/* --- CDC callbacks (USB interrupt context: only signal the worker) --- */
+/* --- CDC callbacks (USB interrupt context) --- */
 
 static void cdc_tx_done(void* ctx) {
     UsbKiss* usb = ctx;
@@ -51,7 +54,22 @@ static void cdc_tx_done(void* ctx) {
 }
 
 static void cdc_rx(void* ctx) {
+    // The TNC's OUT endpoint is double-buffered: the host can land two packets
+    // back to back, firing this callback twice before any thread runs. Thread
+    // flags coalesce, so "signal and read later" reads one packet and strands the
+    // other until more data arrives (multi-packet frames never complete). And a
+    // read with no new packet re-reads the old buffer, so draining in a loop
+    // would duplicate data. Hence: exactly one read per callback, right here.
     UsbKiss* usb = ctx;
+    uint8_t pkt[USB_PKT];
+    int32_t n = furi_hal_cdc_receive(USB_KISS_CHANNEL, pkt, sizeof(pkt));
+    if(n > 0) {
+        if(furi_stream_buffer_spaces_available(usb->in) >= (size_t)n) {
+            furi_stream_buffer_send(usb->in, pkt, (size_t)n, 0);
+        } else {
+            usb->rx_dropped += (uint32_t)n;
+        }
+    }
     furi_thread_flags_set(furi_thread_get_id(usb->thread), EvtRx);
 }
 
@@ -109,9 +127,10 @@ static int32_t usb_kiss_worker(void* ctx) {
         }
         if(evt & EvtStop) break;
 
-        if(evt & EvtRx) {
-            int32_t n = furi_hal_cdc_receive(USB_KISS_CHANNEL, buf, sizeof(buf));
-            for(int32_t i = 0; i < n; i++) {
+        // Drain on every wake, not just EvtRx, so nothing can sit in `in`.
+        size_t n;
+        while((n = furi_stream_buffer_receive(usb->in, buf, sizeof(buf), 0)) > 0) {
+            for(size_t i = 0; i < n; i++) {
                 uint32_t dropped = usb->decoder.dropped;
                 if(kiss_decoder_byte(&usb->decoder, buf[i])) {
                     usb->cb(usb->cb_ctx, usb->decoder.buf, usb->decoder.len);
@@ -146,6 +165,7 @@ UsbKiss* usb_kiss_start(UsbKissFrameCallback cb, void* ctx) {
     usb->cb_ctx = ctx;
     kiss_decoder_init(&usb->decoder);
     usb->out = furi_stream_buffer_alloc(OUT_BUF_SIZE, 1);
+    usb->in = furi_stream_buffer_alloc(IN_BUF_SIZE, 1);
     usb->out_mutex = furi_mutex_alloc(FuriMutexTypeNormal);
     usb->thread = furi_thread_alloc_ex("KissTncUsb", 3 * 1024, usb_kiss_worker, usb);
 
@@ -159,6 +179,7 @@ UsbKiss* usb_kiss_start(UsbKissFrameCallback cb, void* ctx) {
         furi_thread_free(usb->thread);
         furi_mutex_free(usb->out_mutex);
         furi_stream_buffer_free(usb->out);
+        furi_stream_buffer_free(usb->in);
         free(usb);
         return NULL;
     }
@@ -195,6 +216,7 @@ void usb_kiss_stop(UsbKiss* usb) {
 
     furi_mutex_free(usb->out_mutex);
     furi_stream_buffer_free(usb->out);
+    furi_stream_buffer_free(usb->in);
     free(usb);
 }
 
@@ -242,6 +264,10 @@ bool usb_kiss_host_connected(UsbKiss* usb) {
 
 uint32_t usb_kiss_dropped(UsbKiss* usb) {
     return usb ? usb->dropped : 0;
+}
+
+uint32_t usb_kiss_rx_dropped(UsbKiss* usb) {
+    return usb ? usb->rx_dropped : 0;
 }
 
 uint32_t usb_kiss_rx_overflows(UsbKiss* usb) {

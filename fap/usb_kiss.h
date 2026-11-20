@@ -44,5 +44,7 @@ bool usb_kiss_send_pair(
 bool usb_kiss_host_connected(UsbKiss* usb);
 
 uint32_t usb_kiss_dropped(UsbKiss* usb);
+/** Host bytes lost because the receive buffer was full. */
+uint32_t usb_kiss_rx_dropped(UsbKiss* usb);
 /** KISS frames from the host that were discarded for overflowing the decoder. */
 uint32_t usb_kiss_rx_overflows(UsbKiss* usb);

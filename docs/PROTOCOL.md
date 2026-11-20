@@ -144,7 +144,7 @@ waits until it is free.
 OK FREQ=433920000 MODE=0 MOD=GFSK PWR=10 RADIO=INT SQL=-95 DEBUG=0 CALL=N0CALL
    TXDELAY=30 P=63 SLOTTIME=10 TXTAIL=2
    STATE=RX RSSI=-104 RXF=0 TXF=0 BADF=0
-   EDGE_OVF=0 USB_DROP=0 KISS_OVF=0 TXQ_FULL=0 TURN_US=0
+   EDGE_OVF=0 USB_DROP=0 USB_RX_DROP=0 KISS_OVF=0 TXQ_FULL=0 TURN_US=0
    HEAP=81234 HEAP_START=96512 HEAP_MIN=80100 REGION=US TXOK=1
    APP=1.0.0 FW=1.5.1
 ```
@@ -154,6 +154,7 @@ OK FREQ=433920000 MODE=0 MOD=GFSK PWR=10 RADIO=INT SQL=-95 DEBUG=0 CALL=N0CALL
 | `RXF` / `TXF` / `BADF` | good frames received / frames transmitted / bad-FCS frames seen |
 | `EDGE_OVF` | captured edges dropped because the ISR→demod buffer was full |
 | `USB_DROP` | device→host output dropped (host not reading) |
+| `USB_RX_DROP` | host→device bytes dropped (receive buffer full) |
 | `KISS_OVF` | host→device KISS frames dropped for overflowing the decoder |
 | `TXQ_FULL` | frames refused with `ERR QUEUE_FULL` |
 | `TURN_US` | last measured TX-complete → RX-running time |

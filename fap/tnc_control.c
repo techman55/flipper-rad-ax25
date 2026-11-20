@@ -63,7 +63,7 @@ void tnc_control_report_get(Tnc* tnc) {
         "OK FREQ=%lu MODE=%u MOD=%s PWR=%d RADIO=%s SQL=%d DEBUG=%u CALL=%s "
         "TXDELAY=%u P=%u SLOTTIME=%u TXTAIL=%u "
         "STATE=%s RSSI=%d RXF=%lu TXF=%lu BADF=%lu "
-        "EDGE_OVF=%lu USB_DROP=%lu KISS_OVF=%lu TXQ_FULL=%lu TURN_US=%lu "
+        "EDGE_OVF=%lu USB_DROP=%lu USB_RX_DROP=%lu KISS_OVF=%lu TXQ_FULL=%lu TURN_US=%lu "
         "HEAP=%lu HEAP_START=%lu HEAP_MIN=%lu REGION=%s TXOK=%u "
         "APP=%s FW=%s",
         (unsigned long)s.freq,
@@ -85,6 +85,7 @@ void tnc_control_report_get(Tnc* tnc) {
         (unsigned long)bad,
         (unsigned long)tnc->edge_overflow,
         (unsigned long)usb_kiss_dropped(tnc->usb),
+        (unsigned long)usb_kiss_rx_dropped(tnc->usb),
         (unsigned long)usb_kiss_rx_overflows(tnc->usb),
         (unsigned long)txq_full,
         (unsigned long)turn,
