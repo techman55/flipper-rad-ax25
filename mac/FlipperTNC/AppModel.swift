@@ -1,4 +1,3 @@
-#if canImport(SwiftUI) && os(macOS)
 import AppKit
 import FlipperTNCCore
 import Foundation
@@ -359,4 +358,3 @@ final class AppModel {
         }
     }
 }
-#endif

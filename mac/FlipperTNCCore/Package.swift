@@ -1,18 +1,17 @@
 // swift-tools-version:5.9
 import PackageDescription
 
+// Protocol + serial I/O for the Flipper TNC Mac app (KISS, AX.25, status lines,
+// termios serial port, port scanner, KISS-TCP server). Foundation/POSIX only, so
+// `swift test` also runs on Linux. The app itself is ../FlipperTNC.xcodeproj.
 let package = Package(
-    name: "FlipperTNC",
+    name: "FlipperTNCCore",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "FlipperTNC", targets: ["FlipperTNC"]),
         .library(name: "FlipperTNCCore", targets: ["FlipperTNCCore"]),
     ],
     targets: [
-        // Protocol + serial I/O. Foundation/POSIX only, so it also builds and tests on Linux.
         .target(name: "FlipperTNCCore"),
-        // SwiftUI app (macOS). On other platforms it compiles to a stub.
-        .executableTarget(name: "FlipperTNC", dependencies: ["FlipperTNCCore"]),
         .testTarget(name: "FlipperTNCCoreTests", dependencies: ["FlipperTNCCore"]),
     ],
     swiftLanguageVersions: [.v5]

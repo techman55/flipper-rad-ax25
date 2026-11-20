@@ -12,9 +12,14 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .venv/
-# swift
-mac/FlipperTNC/.build/
-mac/FlipperTNC/.swiftpm/
+# swift / xcode
+mac/FlipperTNCCore/.build/
+mac/FlipperTNCCore/.swiftpm/
+mac/build/
+mac/dist/
+mac/tools/icon_preview.png
+xcuserdata/
+*.xcodeproj/project.xcworkspace/
 *.xcuserstate
 DerivedData/
 .DS_Store

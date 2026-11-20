@@ -1,4 +1,3 @@
-#if canImport(SwiftUI) && os(macOS)
 import FlipperTNCCore
 import SwiftUI
 
@@ -261,4 +260,3 @@ struct StatusBar: View {
         return s < 1 ? "now" : "\(s)s ago"
     }
 }
-#endif

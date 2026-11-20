@@ -86,7 +86,7 @@ encode/decode, SSID/H-bit, FCS vectors, frame round trip with path, status-line 
 the device protocol against a fake TNC (GET/configure/errors, RX status ↔ frame pairing,
 ACKMODE, async errors not mistaken for replies), port selection, and the KISS-TCP bridge.
 
-### 1.3 Mac app core: `cd mac/FlipperTNC && swift test`
+### 1.3 Mac app core: `cd mac/FlipperTNCCore && swift test`
 
 ```
 Executed 11 tests, with 0 failures
@@ -94,9 +94,12 @@ Executed 11 tests, with 0 failures
 
 Run on Linux with Swift 6.0.3. KISS, AX.25 (same byte vectors as C and Python), status
 parsing, port classification, and an end-to-end test that drives `TNCConnection` +
-`SerialPort` (termios) through a real pseudo-terminal. The SwiftUI target compiles to a stub
-on Linux; **the actual UI has not been compiled yet**. First `swift build` on a Mac may
-surface small SwiftUI type-check fixes.
+`SerialPort` (termios) through a real pseudo-terminal.
+
+The app itself (`mac/FlipperTNC.xcodeproj`, SwiftUI) **has not been compiled yet**: there is
+no Xcode on Linux. The project file was generated with the `xcodeproj` gem and re-parsed to
+check targets, sources, resources, the local package link, build settings and the shared
+scheme. First `mac/build-app.sh` on a Mac may surface small SwiftUI type-check fixes.
 
 ### 1.4 Firmware build: `cd fap && ufbt`
 
