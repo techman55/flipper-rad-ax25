@@ -10,6 +10,12 @@
  * aligned on tone changes (clock_recovery in fsk_rx.h). Output bits are tone
  * levels (1 = mark); NRZI decode them next.
  *
+ * Tone changes happen mid half-period. With one half-period of look-behind we
+ * pick the half-period that straddles the change (its length lies between the
+ * two nominal values) and place the boundary inside it by phase continuity:
+ *   a / h_old + (d - a) / h_new = 1 half-cycle.
+ * Without this, edges land up to ~0.25 bit off and jitter tolerance collapses.
+ *
  * Pure C, no Flipper dependencies.
  */
 #pragma once
@@ -28,6 +34,12 @@ typedef struct {
     ClockRecovery cr;
     bool tone; /**< current tone: true = mark */
     bool have_tone;
+    /* One half-period of look-behind, so a tone change can be placed inside
+     * whichever half-period actually straddles the bit boundary. */
+    bool have_pending;
+    bool pending_tone;
+    bool pending_whole; /**< pending_us is a full half-period (not a split remainder) */
+    float pending_us;
 } AfskRx;
 
 void afsk_rx_init(AfskRx* rx);

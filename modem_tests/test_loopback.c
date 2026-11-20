@@ -129,6 +129,12 @@ static void test_mode(ModemMode mode) {
     CHECK(run_case(mode, &slow, 1, 40, "-2% skew, ±5us jitter, noise") == 0);
     CHECK(run_case(mode, &inv, 1, 20, "inverted, +1% skew, jitter, noise") == 0);
     CHECK(run_case(mode, &fast, 3, 15, "3 frames/burst, +2%, jitter") == 0);
+
+    // Heavy edge jitter: ~15% of a bit for 9600, ±40 us for the 1200-baud modes
+    // (AFSK: just inside the point where half-periods cross the 322 us threshold).
+    Channel heavy = {.skew = 0.005, .noise = true};
+    heavy.jitter_us = mode == ModemModeFsk9600 ? 15.0 : 40.0;
+    CHECK(run_case(mode, &heavy, 1, 30, "heavy jitter, +0.5% skew, noise") == 0);
 }
 
 static void test_flag_count(void) {
