@@ -26,6 +26,7 @@ Plain `cc`, no Flipper headers, `-Wall -Wextra -Wshadow -Wconversion -Werror`.
 
 ```
 test_afsk_tx: 9 checks, 0 failures
+test_cc1101_preset: 95 checks, 0 failures
 test_g3ruh: 103 checks, 0 failures
 test_hdlc: 2749 checks, 0 failures
 test_kiss_ax25: 1831 checks, 0 failures
@@ -56,6 +57,7 @@ What they cover:
 | G3RUH | round trip (50 seeds), self-sync from a random state within 17 bits, whitening of all-ones, inverted line inverts output |
 | AFSK TX | mean tone 1200.0 / 2200.0 Hz within 0.5 Hz, every half-period within 1 µs of ideal, exact burst length, levels alternate and start high, edges within 0.0025 cycle of a continuously integrated phase (phase-continuous across bit boundaries) |
 | Loopback | per mode: bytes → burst → `(level, duration)` → channel (±2 % clock skew, ±5 µs uniform edge jitter, 20 ms of random edges before/after, polarity inversion) → RX → identical bytes, FCS OK; max-length frame; 3 frames per burst; 5 s of pure noise yields no good frame; huge durations don't hang |
+| CC1101 preset | every mode × {GFSK, 2-FSK}: MDMCFG2 = `14`/`04`, async serial, GDO0 data, deviation 2975.5 Hz, channel filter, programmed rate within 1 % of the line rate (FSK modes) / ≥ 4400 Bd (AFSK), list terminator + PATABLE |
 | KISS / AX.25 | escape vector, 200 random streams, overflow recovery, callsign parsing, UI frame bytes, formatting |
 
 **Margin sweep** (ad-hoc, 60 bursts of a 100-byte frame per point; percentage decoded):
@@ -158,6 +160,7 @@ Fill in the Result column when run. Record firmware version and app version for 
 | T3 | Mode 0: `rtl_fm -f 433.92M -M fm -s 48k -o 4 - \| direwolf -r 48000 -B 9600 -` (9600 needs a wide, flat discriminator; adjust `-s`/`-o` if needed) | Direwolf decodes | NOT RUN |
 | T4 | `fzkiss config --freq 434900000` (outside 433.05–434.79 on official US region) then send | `ERR TX_BLOCKED_REGION`; nothing on the SDR | NOT RUN |
 | T5 | OK button with `CALL=N0CALL` | Banner "Set CALL first", nothing transmitted | NOT RUN |
+| T6 | GFSK check: mode 0, send a long frame (`--text` of ~250 chars) with `--mod GFSK`, then `--mod FSK`; compare on the SDR spectrum (max hold) | GFSK sidelobes visibly lower / narrower occupied bandwidth than 2-FSK; both decode in Direwolf (T3) | NOT RUN |
 
 ### 3.3 RX
 

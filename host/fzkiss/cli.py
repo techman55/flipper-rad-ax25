@@ -49,6 +49,7 @@ def cmd_config(args) -> int:
         settings = dict(
             freq=args.freq,
             mode=args.mode,
+            mod=args.mod,
             pwr=args.pwr,
             radio=args.radio,
             sql=args.sql,
@@ -233,6 +234,8 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("config", help="change settings (no options = GET)")
     c.add_argument("--freq", type=int, help="Hz, e.g. 433920000")
     c.add_argument("--mode", type=int, choices=[0, 1, 2], help="0=FSK9600 1=AFSK1200 2=FSK1200")
+    c.add_argument("--mod", choices=["GFSK", "FSK"], type=str.upper,
+                   help="CC1101 modulation: GFSK (Gaussian, BT 0.5; default) or plain 2-FSK")
     c.add_argument("--pwr", type=int, choices=[-10, 0, 5, 10], help="dBm")
     c.add_argument("--radio", choices=["INT", "EXT"])
     c.add_argument("--sql", type=int, help="squelch / carrier sense, dBm")

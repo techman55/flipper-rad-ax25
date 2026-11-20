@@ -60,6 +60,7 @@ typedef struct {
 #define TNC_CH_CALL   (1u << 6)
 #define TNC_CH_TXONCE (1u << 7)
 #define TNC_CH_KISS   (1u << 8) /**< TXDELAY/P/SLOTTIME/TXTAIL: store only */
+#define TNC_CH_MOD    (1u << 9)
 
 typedef enum {
     TncRadioCmdApply, /**< apply `settings` (fields flagged in `changed`) */

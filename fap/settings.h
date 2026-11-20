@@ -17,9 +17,15 @@ typedef enum {
     TncRadioExternal = 1,
 } TncRadioKind;
 
+typedef enum {
+    TncModulationGfsk = 0, /**< Gaussian 2-FSK, BT 0.5 (default) */
+    TncModulation2Fsk = 1, /**< plain 2-FSK */
+} TncModulation;
+
 typedef struct {
     uint32_t freq; /**< Hz */
     uint8_t mode; /**< ModemMode */
+    TncModulation mod; /**< CC1101 MOD_FORMAT: GFSK or 2-FSK */
     int8_t pwr_dbm; /**< -10, 0, 5, 10 */
     TncRadioKind radio;
     int16_t sql_dbm; /**< squelch / carrier-sense threshold */
@@ -42,6 +48,7 @@ bool tnc_settings_save(const TncSettings* s);
 
 /* Validation helpers shared with the SetHardware parser. */
 bool tnc_freq_in_range(uint32_t hz);
+const char* tnc_mod_name(TncModulation mod); /**< "GFSK" / "FSK" */
 bool tnc_pwr_valid(int32_t dbm);
 bool tnc_sql_valid(int32_t dbm);
 bool tnc_call_valid(const char* call);

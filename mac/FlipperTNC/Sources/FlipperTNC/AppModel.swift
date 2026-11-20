@@ -79,6 +79,7 @@ final class AppModel {
     // MARK: settings form
     var freqMHz = "433.920"
     var mode = 0
+    var modulation = "GFSK"
     var power = 10
     var radio = "INT"
     var squelch = -95
@@ -231,6 +232,7 @@ final class AppModel {
     private func applyGet(_ st: StatusLine) {
         if let f = st.int("FREQ") { freqMHz = String(format: "%.3f", Double(f) / 1e6) }
         if let m = st.int("MODE") { mode = m }
+        if let m = st.fields["MOD"] { modulation = m }
         if let p = st.int("PWR") { power = p }
         if let r = st.fields["RADIO"] { radio = r }
         if let s = st.int("SQL") { squelch = s }
@@ -266,7 +268,7 @@ final class AppModel {
         }
         let hz = Int((mhz * 1e6).rounded())
         let call = callsign.trimmingCharacters(in: .whitespaces).uppercased()
-        var line = "FREQ=\(hz);MODE=\(mode);PWR=\(power);RADIO=\(radio);SQL=\(squelch)"
+        var line = "FREQ=\(hz);MODE=\(mode);MOD=\(modulation);PWR=\(power);RADIO=\(radio);SQL=\(squelch)"
         if (try? AX25Address(parsing: call)) != nil { line += ";CALL=\(call)" }
         lastReply = "…"
         lastReplyIsError = false

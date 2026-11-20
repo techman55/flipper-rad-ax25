@@ -113,6 +113,7 @@ device replies `ERR ...` and applies **nothing**.
 |---|---|---|
 | `FREQ` | Hz, 300000000–348000000, 387000000–464000000, 779000000–928000000 | Retune now, stay in RX. Out of range → `ERR FREQ_RANGE`. A frequency the region forbids for TX is accepted for RX; reply says `TXOK=0`. |
 | `MODE` | `0` FSK9600, `1` AFSK1200, `2` FSK1200 | Reload preset, restart RX |
+| `MOD` | `GFSK` (default), `FSK` | CC1101 modulation: Gaussian-filtered 2-FSK (BT 0.5) or plain 2-FSK. Reload preset. Applies to all modes. |
 | `PWR` | `-10`, `0`, `5`, `10` (dBm) | Reload preset |
 | `RADIO` | `INT`, `EXT` | Switch CC1101. EXT not detected → falls back to INT, reply contains `EXT_NOT_FOUND`. 5 V OTG is on only while EXT is in use. |
 | `SQL` | dBm, −140…−20 | RSSI squelch for RX **and** carrier-sense threshold for CSMA |
@@ -140,7 +141,7 @@ waits until it is free.
 **GET reply** (single line, wrapped here):
 
 ```
-OK FREQ=433920000 MODE=0 PWR=10 RADIO=INT SQL=-95 DEBUG=0 CALL=N0CALL
+OK FREQ=433920000 MODE=0 MOD=GFSK PWR=10 RADIO=INT SQL=-95 DEBUG=0 CALL=N0CALL
    TXDELAY=30 P=63 SLOTTIME=10 TXTAIL=2
    STATE=RX RSSI=-104 RXF=0 TXF=0 BADF=0
    EDGE_OVF=0 USB_DROP=0 KISS_OVF=0 TXQ_FULL=0 TURN_US=0
@@ -219,11 +220,26 @@ TX   --complete-->       RX immediately; then ACK/TXDONE to the host
 All modes: AX.25 → HDLC (flags `7E` unstuffed, data LSB first, a 0 inserted after five 1s,
 FCS = CRC-16/X.25 sent low byte first) → NRZI (0 = transition, 1 = none).
 
-| Mode | Line coding after NRZI | On the CC1101 (2-FSK async, GDO0 = data) |
+| Mode | Line coding after NRZI | On the CC1101 (async serial, GDO0 = data) |
 |---|---|---|
-| 0 FSK9600 | G3RUH scrambler x¹⁷+x¹²+1 (Direwolf convention) | GDO0 = line bit, 9600 bit/s. ±2.98 kHz deviation. |
+| 0 FSK9600 | G3RUH scrambler x¹⁷+x¹²+1 (Direwolf convention) | GDO0 = line bit, 9600 bit/s, ±2.98 kHz deviation. |
 | 1 AFSK1200 | none | GDO0 toggles at the tone rate: mark 1200 Hz for a 1, space 2200 Hz for a 0, 1200 baud, phase-continuous. An FM receiver's discriminator recovers the Bell 202 audio. |
 | 2 FSK1200 | none | As mode 0 at 1200 bit/s, unscrambled |
+
+**Modulation (`MOD`).** Default is **GFSK**: the CC1101's Gaussian filter (BT = 0.5) shapes
+the frequency transitions, which narrows the occupied bandwidth compared with plain 2-FSK.
+In async serial mode the CC1101 oversamples GDO0 at 8× the programmed data rate and the
+Gaussian filter is referenced to that rate, which is why the programmed rate tracks the line
+bit rate for each mode (§9). Receive is identical for GFSK and 2-FSK (same demodulator), so
+a GFSK transmitter is received fine by a 2-FSK receiver and vice versa.
+
+* Modes 0 and 2: true 2-GFSK at 9600 / 1200 bit/s.
+* Mode 1: the "data" is the 1200/2200 Hz square wave; with GFSK the rate is programmed to
+  9.6 kBd so the filter (−3 dB ≈ 4.8 kHz) passes the 2200 Hz fundamental and rounds off the
+  square wave's harmonics, i.e. closer to clean sine-tone FM.
+
+GFSK in **async** mode is per the CC1101 datasheet but is **not yet verified on hardware**:
+check the spectrum on an SDR (TESTING T6). If it misbehaves, `MOD=FSK` restores plain 2-FSK.
 
 FCS check vector: `"123456789"` → `0x906E`.
 
@@ -290,7 +306,8 @@ FCS on the air (added by the device): `4C 39`.
 
 Loaded with `subghz_devices_load_preset(dev, FuriHalSubGhzPresetCustom, regs)`, starting
 from the firmware's `2FSK Dev2.38kHz Async` preset. Crystal f<sub>xosc</sub> = 26 MHz.
-Source: `radio_build_preset()` in `fap/radio.c`.
+Source: `cc1101_build_preset()` in `fap/modem/cc1101_preset.c` (pure C, unit-tested in
+`modem_tests/test_cc1101_preset.c`).
 
 | Reg | Addr | Value | Meaning / calculation |
 |---|---|---|---|
@@ -300,9 +317,9 @@ Source: `radio_build_preset()` in `fap/radio.c`.
 | PKTCTRL1 | `07` | `04` | (unused in async) |
 | MDMCFG0 | `14` | `00` | (channel spacing, unused) |
 | MDMCFG1 | `13` | `02` | CHANSPC_E = 2, no FEC (unused in async) |
-| MDMCFG2 | `12` | `04` | 2-FSK, DC blocking filter on, no Manchester, no sync word |
+| MDMCFG2 | `12` | `14` / `04` | MOD_FORMAT `001` **GFSK** (default) / `000` 2-FSK; DC blocking filter on, no Manchester, no sync word |
 | MDMCFG3 | `11` | `83` | DRATE_M = 131 |
-| MDMCFG4 | `10` | `D8` / `D7` / `D5` | CHANBW `D` (E=3, M=1) + DRATE_E per mode, see below |
+| MDMCFG4 | `10` | `D8` / `D8`·`D7` / `D5` | CHANBW `D` (E=3, M=1) + DRATE_E per mode/modulation, see below |
 | DEVIATN | `15` | `07` | E=0, M=7: f<sub>dev</sub> = 26e6 / 2¹⁷ × (8+7) × 2⁰ = **2975.5 Hz** |
 | MCSM0 | `18` | `18` | Autocalibrate on IDLE→RX/TX, PO_TIMEOUT 149–155 µs |
 | FOCCFG | `19` | `16` | Freq. offset compensation on: pre-K 3K, post-K K/2, limit ±BW/4 |
@@ -318,12 +335,16 @@ Source: `radio_build_preset()` in `fap/radio.c`.
 | Mode | DRATE_E | R | MDMCFG4 |
 |---|---|---|---|
 | 0 FSK9600 | 8 | 9595.9 Bd | `D8` |
-| 1 AFSK1200 | 7 | 4797.9 Bd (above the 2200 Hz tone's 4400 transitions/s) | `D7` |
+| 1 AFSK1200, GFSK | 8 | 9595.9 Bd (Gaussian −3 dB ≈ 4.8 kHz: keeps the 2200 Hz tone) | `D8` |
+| 1 AFSK1200, 2-FSK | 7 | 4797.9 Bd (above the 2200 Hz tone's 4400 transitions/s) | `D7` |
 | 2 FSK1200 | 5 | 1199.5 Bd | `D5` |
 
-In async mode the chip does no clock recovery; the rate only shapes the demodulator.
+In async mode the chip does no clock recovery. The rate sets the 8× input oversampling (TX
+edge timing resolution: 13 µs at 9.6 kBd, 104 µs at 1.2 kBd, always ≤ 1/8 bit), the
+Gaussian filter (GFSK), and the demodulator's data filter on RX.
 
-**Channel filter** BW = 26e6 / (8 × (4 + M) × 2^E), set by `KISS_TNC_CHANBW` in `fap/radio.h`:
+**Channel filter** BW = 26e6 / (8 × (4 + M) × 2^E), set by `KISS_TNC_CHANBW` in
+`fap/modem/cc1101_preset.h`:
 
 | `KISS_TNC_CHANBW` | E, M | BW |
 |---|---|---|

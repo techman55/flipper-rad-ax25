@@ -60,7 +60,7 @@ void tnc_control_report_get(Tnc* tnc) {
     const Version* ver = furi_hal_version_get_firmware_version();
     tnc_report(
         tnc,
-        "OK FREQ=%lu MODE=%u PWR=%d RADIO=%s SQL=%d DEBUG=%u CALL=%s "
+        "OK FREQ=%lu MODE=%u MOD=%s PWR=%d RADIO=%s SQL=%d DEBUG=%u CALL=%s "
         "TXDELAY=%u P=%u SLOTTIME=%u TXTAIL=%u "
         "STATE=%s RSSI=%d RXF=%lu TXF=%lu BADF=%lu "
         "EDGE_OVF=%lu USB_DROP=%lu KISS_OVF=%lu TXQ_FULL=%lu TURN_US=%lu "
@@ -68,6 +68,7 @@ void tnc_control_report_get(Tnc* tnc) {
         "APP=%s FW=%s",
         (unsigned long)s.freq,
         s.mode,
+        tnc_mod_name(s.mod),
         s.pwr_dbm,
         radio ? radio : "?",
         s.sql_dbm,
@@ -167,6 +168,18 @@ static void handle_sethw(Tnc* tnc, const uint8_t* data, size_t len) {
             }
             cmd.settings.mode = (uint8_t)v;
             cmd.changed |= TNC_CH_MODE;
+        } else if(strcmp(key, "MOD") == 0) {
+            for(char* p = val; *p; p++)
+                if(*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
+            if(strcmp(val, "GFSK") == 0) {
+                cmd.settings.mod = TncModulationGfsk;
+            } else if(strcmp(val, "FSK") == 0 || strcmp(val, "2FSK") == 0) {
+                cmd.settings.mod = TncModulation2Fsk;
+            } else {
+                tnc_report(tnc, "ERR BAD_VALUE MOD");
+                return;
+            }
+            cmd.changed |= TNC_CH_MOD;
         } else if(strcmp(key, "PWR") == 0) {
             if(!parse_long(val, &v) || !tnc_pwr_valid(v)) {
                 tnc_report(tnc, "ERR BAD_VALUE PWR");

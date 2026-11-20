@@ -32,11 +32,17 @@ Included:
 
 | Mode | Name | Over the air | Works with | Status |
 |---|---|---|---|---|
-| 0 | `FSK9600` (default) | 2-FSK 9600 bit/s, ±3 kHz, NRZI + G3RUH scrambler, HDLC | Another Flipper/CC1101, RFM9x in FSK mode, 9600-baud G3RUH packet (Direwolf `-B 9600`) | Primary |
-| 1 | `AFSK1200` | Bell 202 (1200/2200 Hz, 1200 baud) as square-wave FM, NRZI, HDLC | Standard 1200-baud packet/APRS receivers (HTs, Direwolf) | TX ready; **RX experimental** |
+| 0 | `FSK9600` (default) | 2-GFSK 9600 bit/s, ±3 kHz, NRZI + G3RUH scrambler, HDLC | Another Flipper/CC1101, RFM9x in FSK mode, 9600-baud G3RUH packet (Direwolf `-B 9600`) | Primary |
+| 1 | `AFSK1200` | Bell 202 (1200/2200 Hz, 1200 baud) as Gaussian-smoothed square-wave FM, NRZI, HDLC | Standard 1200-baud packet/APRS receivers (HTs, Direwolf) | TX ready; **RX experimental** |
 | 2 | `FSK1200` | As mode 0 at 1200 bit/s, no scrambler | Another Flipper/CC1101 | Extra |
 
-Default: mode 0, **433.920 MHz**, +10 dBm. Max frame 330 bytes (AX.25 without FCS).
+Default: mode 0, **GFSK**, **433.920 MHz**, +10 dBm. Max frame 330 bytes (AX.25 without FCS).
+
+**Modulation:** all modes transmit **2-GFSK** by default (CC1101 Gaussian filter, BT 0.5),
+which narrows the signal compared with plain 2-FSK. `fzkiss config --mod FSK` switches to
+plain 2-FSK. Receiving is the same either way, so GFSK and 2-FSK stations hear each other.
+GFSK in the CC1101's async mode follows the datasheet but hasn't been checked on an SDR yet
+(`docs/TESTING.md` T6).
 
 Mode 1 RX listens to the CC1101's sliced FM output and times tone half-periods. It decodes
 cleanly in simulation, but the real slicer on a real AFSK signal is untested. Use it, but
@@ -133,7 +139,7 @@ fzkiss ports
 ```
 
 ```bash
-fzkiss config --call KN4XXX-1 --freq 433920000 --mode 0 --pwr 10
+fzkiss config --call KN4XXX-1 --freq 433920000 --mode 0 --mod GFSK --pwr 10
 ```
 
 ```bash
@@ -160,7 +166,7 @@ cd mac/FlipperTNC && swift run
 Or `open mac/FlipperTNC/Package.swift` in Xcode and run. macOS 14+.
 
 It finds the TNC port automatically and reconnects after a replug. It has settings
-(frequency, mode, power, internal/external radio, squelch, callsign) with the device's
+(frequency, mode, GFSK/2-FSK, power, internal/external radio, squelch, callsign) with the device's
 `OK`/`ERR` reply shown, a compose panel (text or raw hex, sent with ACKMODE so each row goes
 *queued → sent ✓*), a filterable live log with hex view and `.jsonl`/`.txt` export, a status
 bar (connection, device state, heartbeat age, RX/TX counts), and an optional KISS-TCP server
@@ -175,7 +181,7 @@ on port 8001.
 
 ```
 KISS TNC                     RX
-FSK9600  433.920 MHz
+FSK9600 GFSK 433.920 MHz
 RSSI -104  USB:yes  INT
 RX 3  TX 1  BAD 0
 ──────────────────────────────
@@ -235,7 +241,7 @@ cd fap && ufbt
 ```
 
 The FAP lands in `fap/dist/kiss_tnc.fap`. The channel filter width is a compile-time option
-(`KISS_TNC_CHANBW` in `fap/radio.h`, default 81 kHz).
+(`KISS_TNC_CHANBW` in `fap/modem/cc1101_preset.h`, default 81 kHz).
 
 ## Limits
 

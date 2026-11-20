@@ -2,12 +2,12 @@
 
 #include <furi.h>
 #include <furi_hal.h>
-#include <lib/drivers/cc1101_regs.h>
 #include <lib/subghz/devices/cc1101_int/cc1101_int_interconnect.h>
 #include <lib/subghz/devices/devices.h>
 #include <applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h>
 #include <power/power_service/power.h>
 
+#include "modem/cc1101_preset.h"
 #include "modem/modem.h"
 
 #define TAG "KissTncRadio"
@@ -19,75 +19,8 @@ struct Radio {
     bool rx_running;
     bool tx_running;
     bool registry_up;
-    uint8_t preset[64];
+    uint8_t preset[48]; /* CC1101_PRESET_MAX */
 };
-
-/*
- * CC1101 register values. Crystal f_xosc = 26 MHz. See docs/PROTOCOL.md for the derivations.
- *
- * DEVIATN 0x07: E=0, M=7  -> f_dev = 26e6 / 2^17 * (8 + 7) * 2^0 = 2975.5 Hz
- * MDMCFG3 0x83 (DRATE_M = 131), DRATE_E per mode (MDMCFG4[3:0]):
- *   R = (256 + 131) * 2^E * 26e6 / 2^28
- *   E=8 ->  9595.9 Bd (FSK9600)
- *   E=7 ->  4797.9 Bd (AFSK1200: passes the 2200 Hz tone's 4400 transitions/s)
- *   E=5 ->  1199.5 Bd (FSK1200)
- */
-static uint8_t drate_e_for_mode(uint8_t mode) {
-    switch(mode) {
-    case ModemModeFsk9600:
-        return 8;
-    case ModemModeAfsk1200:
-        return 7;
-    default:
-        return 5;
-    }
-}
-
-static uint8_t patable_for_dbm(int8_t dbm) {
-    // Values from the firmware's own 2-FSK async preset table (433 MHz column).
-    switch(dbm) {
-    case -10:
-        return 0x34;
-    case 0:
-        return 0x60;
-    case 5:
-        return 0x84;
-    default:
-        return 0xC0; // +10 dBm
-    }
-}
-
-size_t radio_build_preset(uint8_t* out, size_t cap, uint8_t mode, int8_t pwr_dbm) {
-    const uint8_t regs[] = {
-        CC1101_IOCFG0,   0x0D, // GDO0 = async serial data in/out
-        CC1101_FSCTRL1,  0x06, // IF = 26e6 / 2^10 * 6 = 152.3 kHz
-        CC1101_PKTCTRL0, 0x32, // async serial mode, infinite length, no CRC, no whitening
-        CC1101_PKTCTRL1, 0x04, // no address check (unused in async)
-        CC1101_MDMCFG0,  0x00, // channel spacing mantissa (unused)
-        CC1101_MDMCFG1,  0x02, // CHANSPC_E = 2, no FEC (unused in async)
-        CC1101_MDMCFG2,  0x04, // 2-FSK, DC filter on, no Manchester, no sync word
-        CC1101_MDMCFG3,  0x83, // DRATE_M = 131
-        CC1101_MDMCFG4,  (uint8_t)(KISS_TNC_CHANBW | drate_e_for_mode(mode)),
-        CC1101_DEVIATN,  0x07, // ~2.98 kHz deviation
-        CC1101_MCSM0,    0x18, // autocal IDLE->RX/TX, PO_TIMEOUT 149-155 us
-        CC1101_FOCCFG,   0x16, // FOC on: pre-K 3K, post-K K/2, limit +/- BW/4
-        CC1101_AGCCTRL0, 0x91, // medium hysteresis, 16 samples, normal AGC
-        CC1101_AGCCTRL1, 0x00, // relative carrier sense off
-        CC1101_AGCCTRL2, 0x07, // all gain settings, 42 dB target
-        CC1101_WORCTRL,  0xFB,
-        CC1101_FREND0,   0x10, // PA_POWER index 0 -> PATABLE[0]
-        CC1101_FREND1,   0x56,
-    };
-    size_t need = sizeof(regs) + 2 + 8;
-    if(cap < need) return 0;
-    memcpy(out, regs, sizeof(regs));
-    size_t n = sizeof(regs);
-    out[n++] = 0; // end of registers
-    out[n++] = 0;
-    memset(&out[n], 0, 8);
-    out[n] = patable_for_dbm(pwr_dbm); // 2-FSK uses PATABLE[0] only
-    return n + 8;
-}
 
 Radio* radio_alloc(void) {
     Radio* radio = malloc(sizeof(Radio));
@@ -162,9 +95,15 @@ const char* radio_name(const Radio* radio) {
     return radio->kind == TncRadioExternal ? "EXT" : "INT";
 }
 
-void radio_configure(Radio* radio, uint8_t mode, int8_t pwr_dbm) {
+void radio_configure(Radio* radio, uint8_t mode, TncModulation mod, int8_t pwr_dbm) {
     furi_check(!radio->rx_running && !radio->tx_running);
-    size_t n = radio_build_preset(radio->preset, sizeof(radio->preset), mode, pwr_dbm);
+    // Register values and their derivations: modem/cc1101_preset.c, docs/PROTOCOL.md §9.
+    size_t n = cc1101_build_preset(
+        radio->preset,
+        sizeof(radio->preset),
+        mode,
+        mod == TncModulation2Fsk ? Cc1101Mod2Fsk : Cc1101ModGfsk,
+        pwr_dbm);
     furi_check(n);
     subghz_devices_reset(radio->device);
     subghz_devices_load_preset(radio->device, FuriHalSubGhzPresetCustom, radio->preset);

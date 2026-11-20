@@ -14,6 +14,7 @@ void tnc_settings_defaults(TncSettings* s) {
     memset(s, 0, sizeof(*s));
     s->freq = 433920000;
     s->mode = ModemModeFsk9600;
+    s->mod = TncModulationGfsk;
     s->pwr_dbm = 10;
     s->radio = TncRadioInternal;
     s->sql_dbm = -95;
@@ -30,6 +31,10 @@ bool tnc_freq_in_range(uint32_t hz) {
     // Anything else would furi_crash() inside set_frequency.
     return (hz >= 300000000u && hz <= 348000000u) || (hz >= 387000000u && hz <= 464000000u) ||
            (hz >= 779000000u && hz <= 928000000u);
+}
+
+const char* tnc_mod_name(TncModulation mod) {
+    return mod == TncModulation2Fsk ? "FSK" : "GFSK";
 }
 
 bool tnc_pwr_valid(int32_t dbm) {
@@ -63,6 +68,9 @@ static void apply_kv(TncSettings* s, const char* key, const char* val) {
         if(end && *end == 0 && tnc_freq_in_range((uint32_t)f)) s->freq = (uint32_t)f;
     } else if(strcmp(key, "MODE") == 0) {
         if(num && v >= 0 && v < ModemModeCount) s->mode = (uint8_t)v;
+    } else if(strcmp(key, "MOD") == 0) {
+        if(strcmp(val, "GFSK") == 0) s->mod = TncModulationGfsk;
+        if(strcmp(val, "FSK") == 0) s->mod = TncModulation2Fsk;
     } else if(strcmp(key, "PWR") == 0) {
         if(num && tnc_pwr_valid(v)) s->pwr_dbm = (int8_t)v;
     } else if(strcmp(key, "RADIO") == 0) {
@@ -120,10 +128,11 @@ bool tnc_settings_save(const TncSettings* s) {
         buf,
         sizeof(buf),
         "# KISS TNC settings\n"
-        "FREQ=%lu\nMODE=%u\nPWR=%d\nRADIO=%s\nSQL=%d\nDEBUG=%u\nCALL=%s\n"
+        "FREQ=%lu\nMODE=%u\nMOD=%s\nPWR=%d\nRADIO=%s\nSQL=%d\nDEBUG=%u\nCALL=%s\n"
         "TXDELAY=%u\nP=%u\nSLOTTIME=%u\nTXTAIL=%u\n",
         (unsigned long)s->freq,
         s->mode,
+        tnc_mod_name(s->mod),
         s->pwr_dbm,
         s->radio == TncRadioExternal ? "EXT" : "INT",
         s->sql_dbm,

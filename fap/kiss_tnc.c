@@ -60,7 +60,13 @@ static void draw_callback(Canvas* canvas, void* ctx) {
     canvas_set_font(canvas, FontSecondary);
     // Line 2: mode + frequency
     draw_freq(freq, sizeof(freq), s.freq);
-    snprintf(buf, sizeof(buf), "%s  %s", modem_mode_name((ModemMode)s.mode), freq);
+    snprintf(
+        buf,
+        sizeof(buf),
+        "%s %s %s",
+        modem_mode_name((ModemMode)s.mode),
+        tnc_mod_name(s.mod),
+        freq);
     canvas_draw_str(canvas, 0, 19, buf);
     // Line 3: RSSI, USB, radio
     snprintf(

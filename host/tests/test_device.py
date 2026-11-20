@@ -12,6 +12,8 @@ def test_get_and_configure(fake):
         st = tnc.configure(freq=433920000, mode=1, pwr=None, debug=True)
         assert st.kind == "OK"
         assert fake.frames[-1].payload == b"FREQ=433920000;MODE=1;DEBUG=1"
+        st = tnc.configure(mod="GFSK")
+        assert fake.frames[-1].payload == b"MOD=GFSK" and st.kind == "OK"
         st = tnc.configure(freq=100000000)
         assert st.kind == "ERR" and st.error == "FREQ_RANGE"
 

@@ -11,15 +11,7 @@
 
 #include "settings.h"
 
-/*
- * Channel filter bandwidth (MDMCFG4[7:4]): BW = 26 MHz / (8 * (4 + M) * 2^E).
- *   0xC0 = 101.6 kHz, 0xD0 = 81.25 kHz, 0xE0 = 67.7 kHz, 0xF0 = 58.0 kHz.
- * Wider tolerates more crystal offset between cheap radios; narrower is more sensitive.
- * Override at build time, e.g. `ufbt CFLAGS+=-DKISS_TNC_CHANBW=0xC0` or edit here.
- */
-#ifndef KISS_TNC_CHANBW
-#define KISS_TNC_CHANBW 0xD0
-#endif
+/* Channel filter width: KISS_TNC_CHANBW in modem/cc1101_preset.h (default 81.25 kHz). */
 
 typedef struct Radio Radio;
 
@@ -42,8 +34,8 @@ void radio_end(Radio* radio);
 
 const char* radio_name(const Radio* radio);
 
-/** Load the custom 2-FSK async preset for a mode + power. Radio must be idle. */
-void radio_configure(Radio* radio, uint8_t mode, int8_t pwr_dbm);
+/** Load the custom async preset (GFSK or 2-FSK) for a mode + power. Radio must be idle. */
+void radio_configure(Radio* radio, uint8_t mode, TncModulation mod, int8_t pwr_dbm);
 
 /** Tune. `hz` must satisfy tnc_freq_in_range(). Radio must be idle. Returns the real frequency. */
 uint32_t radio_set_frequency(Radio* radio, uint32_t hz);
@@ -61,6 +53,3 @@ bool radio_tx_complete(Radio* radio);
 void radio_stop_tx(Radio* radio);
 
 float radio_rssi(Radio* radio);
-
-/** Fills `out` with the preset (register pairs, 0,0, 8 PA bytes). Exposed for docs/tests. */
-size_t radio_build_preset(uint8_t* out, size_t cap, uint8_t mode, int8_t pwr_dbm);

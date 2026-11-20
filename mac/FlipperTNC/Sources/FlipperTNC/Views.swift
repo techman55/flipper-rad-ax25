@@ -82,6 +82,10 @@ struct SettingsSection: View {
                 Picker("Mode", selection: $model.mode) {
                     ForEach(AppModel.modes, id: \.0) { m in Text(m.1).tag(m.0) }
                 }
+                Picker("Modulation", selection: $model.modulation) {
+                    Text("GFSK (BT 0.5)").tag("GFSK")
+                    Text("2-FSK").tag("FSK")
+                }
                 Picker("Power", selection: $model.power) {
                     ForEach(AppModel.powers, id: \.self) { p in Text("\(p) dBm").tag(p) }
                 }

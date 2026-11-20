@@ -25,6 +25,7 @@ typedef struct {
     /* what the radio is actually configured for */
     uint32_t freq;
     uint8_t mode;
+    TncModulation mod;
     int8_t pwr;
     TncRadioKind kind;
     uint32_t txonce_hz;
@@ -86,7 +87,7 @@ static void report_seq_error(Tnc* tnc, const TncTxItem* item, const char* err) {
 
 static void radio_bringup(Worker* w, TncRadioKind want) {
     w->kind = radio_begin(w->radio, want);
-    radio_configure(w->radio, w->mode, w->pwr);
+    radio_configure(w->radio, w->mode, w->mod, w->pwr);
     radio_set_frequency(w->radio, w->freq);
     w->tnc->radio_name = radio_name(w->radio);
     w->tnc->radio_ok = true;
@@ -107,11 +108,13 @@ static void handle_apply(Worker* w, const TncRadioCmd* cmd) {
 
     bool radio_change = (ch & TNC_CH_RADIO) && s->radio != w->kind;
     bool reconf = radio_change || ((ch & TNC_CH_MODE) && s->mode != w->mode) ||
+                  ((ch & TNC_CH_MOD) && s->mod != w->mod) ||
                   ((ch & TNC_CH_PWR) && s->pwr_dbm != w->pwr);
     bool retune = reconf || ((ch & TNC_CH_FREQ) && s->freq != w->freq);
 
     if(ch & TNC_CH_FREQ) w->freq = s->freq;
     if(ch & TNC_CH_MODE) w->mode = s->mode;
+    if(ch & TNC_CH_MOD) w->mod = s->mod;
     if(ch & TNC_CH_PWR) w->pwr = s->pwr_dbm;
 
     if(reconf || retune) {
@@ -120,7 +123,7 @@ static void handle_apply(Worker* w, const TncRadioCmd* cmd) {
             radio_end(w->radio);
             radio_bringup(w, s->radio); // also configures + tunes
         } else {
-            if(reconf) radio_configure(w->radio, w->mode, w->pwr);
+            if(reconf) radio_configure(w->radio, w->mode, w->mod, w->pwr);
             radio_set_frequency(w->radio, w->freq);
         }
         start_rx(w);
@@ -133,6 +136,7 @@ static void handle_apply(Worker* w, const TncRadioCmd* cmd) {
     TncSettings* t = &tnc->settings;
     if(ch & TNC_CH_FREQ) t->freq = w->freq;
     if(ch & TNC_CH_MODE) t->mode = w->mode;
+    if(ch & TNC_CH_MOD) t->mod = w->mod;
     if(ch & TNC_CH_PWR) t->pwr_dbm = w->pwr;
     if(ch & TNC_CH_RADIO) t->radio = w->kind;
     if(ch & TNC_CH_SQL) t->sql_dbm = s->sql_dbm;
@@ -154,6 +158,7 @@ static void handle_apply(Worker* w, const TncRadioCmd* cmd) {
         ADD(" FREQ=%lu TXOK=%u", (unsigned long)w->freq, radio_tx_allowed(w->freq) ? 1u : 0u);
     }
     if(ch & TNC_CH_MODE) ADD(" MODE=%u", w->mode);
+    if(ch & TNC_CH_MOD) ADD(" MOD=%s", tnc_mod_name(w->mod));
     if(ch & TNC_CH_PWR) ADD(" PWR=%d", w->pwr);
     if(ch & TNC_CH_RADIO) {
         ADD(" RADIO=%s", radio_name(w->radio));
@@ -341,6 +346,7 @@ int32_t tnc_radio_worker(void* ctx) {
     furi_mutex_acquire(tnc->mutex, FuriWaitForever);
     w->freq = tnc->settings.freq;
     w->mode = tnc->settings.mode;
+    w->mod = tnc->settings.mod;
     w->pwr = tnc->settings.pwr_dbm;
     TncRadioKind want = tnc->settings.radio;
     furi_mutex_release(tnc->mutex);
@@ -354,7 +360,12 @@ int32_t tnc_radio_worker(void* ctx) {
         tnc_report(tnc, "ERR RADIO_INIT EXT_NOT_FOUND RADIO=%s", radio_name(w->radio));
     }
     start_rx(w);
-    FURI_LOG_I(TAG, "Listening on %lu Hz, mode %s", w->freq, modem_mode_name(w->mode));
+    FURI_LOG_I(
+        TAG,
+        "Listening on %lu Hz, mode %s, %s",
+        w->freq,
+        modem_mode_name(w->mode),
+        tnc_mod_name(w->mod));
 
     uint32_t next_hb = furi_get_tick() + TNC_HEARTBEAT_MS;
     while(tnc->running) {
