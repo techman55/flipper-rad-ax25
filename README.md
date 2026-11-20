@@ -200,7 +200,7 @@ settings belong there, though editing in Xcode works too.
 ## On the Flipper
 
 ```
-KISS TNC                     RX
+((ψ)) KISS TNC               RX
 FSK9600 GFSK 433.920 MHz
 RSSI -104  USB:yes  INT
 RX 3  TX 1  BAD 0
@@ -215,6 +215,16 @@ KN4XXX-1>TEST: hello
 | OK | Send test beacon `<CALL>>TEST: flipper kiss tnc test` (refused while CALL is N0CALL) |
 | Left / Right | Change mode |
 | Up / Down | Step frequency ±25 kHz, then OK to tune or Back to cancel |
+
+The app's icon is a 10×10 pixel antenna (`fap/icons/kiss_10px.png`): it's the menu icon
+under Apps → Sub-GHz, and it sits in the top-left of the app's screen showing what the
+radio is doing:
+
+| State | Antenna |
+|---|---|
+| RX (listening) | mast + inner waves |
+| CSMA (waiting for a clear channel) | inner waves blink |
+| TX | waves pulse outward (inner, then inner + outer) |
 
 LED: green blink per received frame, red per transmission.
 

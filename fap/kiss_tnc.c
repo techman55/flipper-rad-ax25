@@ -23,6 +23,49 @@
 
 /* ---------- GUI ---------- */
 
+/*
+ * 10x10 pixel antenna, the same glyph as the app's menu icon (icons/kiss_10px.png),
+ * split into layers so the waves can show what the radio is doing.
+ */
+typedef struct {
+    uint8_t x, y;
+} Px;
+
+static const Px ANT_MAST[] = {
+    {4, 3}, {5, 3}, {3, 4}, {6, 4}, {4, 5}, {5, 5}, {4, 6}, {5, 6}, {4, 7}, {5, 7},
+    {3, 8}, {4, 8}, {5, 8}, {6, 8}, {2, 9}, {3, 9}, {4, 9}, {5, 9}, {6, 9}, {7, 9},
+};
+static const Px ANT_INNER[] = {{3, 1}, {6, 1}, {2, 2}, {7, 2}, {2, 3}, {7, 3}};
+static const Px ANT_OUTER[] = {
+    {1, 0}, {8, 0}, {0, 1}, {9, 1}, {0, 2}, {9, 2}, {0, 3}, {9, 3}, {0, 4}, {9, 4}, {1, 5}, {8, 5},
+};
+
+static void draw_px(Canvas* canvas, int32_t x0, int32_t y0, const Px* px, size_t n) {
+    for(size_t i = 0; i < n; i++) {
+        canvas_draw_dot(canvas, x0 + px[i].x, y0 + px[i].y);
+    }
+}
+
+/* RX: listening (inner waves). CSMA: inner waves blink. TX: waves pulse outward. */
+static void draw_antenna(Canvas* canvas, int32_t x0, int32_t y0, TncState state) {
+    uint32_t phase = furi_get_tick() / 250u;
+    draw_px(canvas, x0, y0, ANT_MAST, COUNT_OF(ANT_MAST));
+    switch(state) {
+    case TncStateTx:
+        draw_px(canvas, x0, y0, ANT_INNER, COUNT_OF(ANT_INNER));
+        if(phase & 1u) draw_px(canvas, x0, y0, ANT_OUTER, COUNT_OF(ANT_OUTER));
+        break;
+    case TncStateCsma:
+        if(phase & 1u) draw_px(canvas, x0, y0, ANT_INNER, COUNT_OF(ANT_INNER));
+        break;
+    case TncStateRx:
+        draw_px(canvas, x0, y0, ANT_INNER, COUNT_OF(ANT_INNER));
+        break;
+    default:
+        break; // INIT / ERROR: bare mast
+    }
+}
+
 static void draw_freq(char* out, size_t cap, uint32_t hz) {
     snprintf(
         out,
@@ -52,9 +95,10 @@ static void draw_callback(Canvas* canvas, void* ctx) {
     canvas_clear(canvas);
     canvas_set_color(canvas, ColorBlack);
 
-    // Line 1: title + state
+    // Line 1: antenna + title + state
+    draw_antenna(canvas, 0, 0, tnc->state);
     canvas_set_font(canvas, FontPrimary);
-    canvas_draw_str(canvas, 0, 9, "KISS TNC");
+    canvas_draw_str(canvas, 13, 9, "KISS TNC");
     canvas_draw_str_aligned(canvas, 127, 0, AlignRight, AlignTop, tnc_state_name(tnc->state));
 
     canvas_set_font(canvas, FontSecondary);
