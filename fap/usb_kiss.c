@@ -147,7 +147,7 @@ UsbKiss* usb_kiss_start(UsbKissFrameCallback cb, void* ctx) {
     kiss_decoder_init(&usb->decoder);
     usb->out = furi_stream_buffer_alloc(OUT_BUF_SIZE, 1);
     usb->out_mutex = furi_mutex_alloc(FuriMutexTypeNormal);
-    usb->thread = furi_thread_alloc_ex("KissTncUsb", 2048, usb_kiss_worker, usb);
+    usb->thread = furi_thread_alloc_ex("KissTncUsb", 3 * 1024, usb_kiss_worker, usb);
 
     usb->prev_config = furi_hal_usb_get_config();
     usb->cli_vcp = furi_record_open(RECORD_CLI_VCP);

@@ -247,19 +247,24 @@ int32_t kiss_tnc_app(void* p) {
         view_port_update(tnc->view_port);
     }
 
-    // Teardown order: radio (stops ISR) -> demod -> USB (restores config).
+    // Detach the screen first: the draw callback reads state we are about to free.
+    gui_remove_view_port(tnc->gui, tnc->view_port);
+
+    // Teardown order: radio (stops async RX/TX, idles + ends the device) -> demod -> USB
+    // (restores the previous USB config).
     tnc->running = false;
     furi_thread_join(tnc->radio_thread);
     furi_thread_free(tnc->radio_thread);
     furi_thread_join(tnc->demod_thread);
     furi_thread_free(tnc->demod_thread);
-    usb_kiss_stop(tnc->usb);
+    UsbKiss* usb = tnc->usb;
     tnc->usb = NULL;
+    usb_kiss_stop(usb);
     furi_hal_power_suppress_charge_exit();
 
-    gui_remove_view_port(tnc->gui, tnc->view_port);
-    view_port_free(tnc->view_port);
+    ViewPort* vp = tnc->view_port;
     tnc->view_port = NULL;
+    view_port_free(vp);
     furi_record_close(RECORD_GUI);
     furi_record_close(RECORD_NOTIFICATION);
 
