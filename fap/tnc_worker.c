@@ -351,6 +351,7 @@ int32_t tnc_radio_worker(void* ctx) {
         tnc->settings.radio = w->kind;
         furi_mutex_release(tnc->mutex);
         tnc_banner(tnc, "EXT radio not found");
+        tnc_report(tnc, "ERR RADIO_INIT EXT_NOT_FOUND RADIO=%s", radio_name(w->radio));
     }
     start_rx(w);
     FURI_LOG_I(TAG, "Listening on %lu Hz, mode %s", w->freq, modem_mode_name(w->mode));
